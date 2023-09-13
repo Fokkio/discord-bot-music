@@ -71,4 +71,3 @@ client.on("interactionCreate", async interactioon => {
 
 
 client.login(process.env.TOKEN);
-console.log('hello world')
