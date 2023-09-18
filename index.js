@@ -1,73 +1,83 @@
-require("dotenv").config();
+require('dotenv').config();
 
-const {REST} = require("@discordjs/rest");
-const { Routes } = require("discord-api-types/v9");
-const { Client, Collection, GatewayIntentBits } = require("discord.js");
-const { Player } = require("discord-player");
+const {REST} = require('@discordjs/rest');
+const { Routes } = require('discord-api-types/v9');
+const { Client, GatewayIntentBits, Collection } = require("discord.js");
+const { Player } = require("discord-player")
 
-const fs = require("node:fs");
-const path = require("node:path");
-const { intersection } = require("lodash");
+const fs = require('fs');
+const path = require('path');
 
-const client = new Client({
-    intents: [ GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages, 
-        GatewayIntentBits.GuildVoiceStates]
-});
 
-// Load all the command
-const command = [];
-client.command = new Collection();
+const  client = new Client({
+    intents: [
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.MessageContent,
+      GatewayIntentBits.GuildVoiceStates,
+      GatewayIntentBits.GuildPresences,
+      GatewayIntentBits.GuildMembers,
+      GatewayIntentBits.GuildScheduledEvents,
+      GatewayIntentBits.GuildMessageReactions,
+      GatewayIntentBits.GuildVoiceStates,
+    ],
+  });
 
-const commandsPath = path.join(__dirname, "commands");
-const commamdFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
+// List of all commands
+const commands = [];
+client.commands = new Collection();
 
-for (const file of commandFiles)
+const commandsPath = path.join(__dirname, "commands"); // E:\yt\discord bot\js\intro\commands
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+for(const file of commandFiles)
 {
-    const filePath = path.join(commandsPath, flie);
+    const filePath = path.join(commandsPath, file);
     const command = require(filePath);
 
     client.commands.set(command.data.name, command);
-    commands.push(command);
+    commands.push(command.data.toJSON());
 }
 
-client.Player = new Player(client, {
+// Add the player on the client
+client.player = new Player(client, {
     ytdlOptions: {
         quality: "highestaudio",
         highWaterMark: 1 << 25
     }
-});
+})
 
 client.on("ready", () => {
+    client.user.setActivity(`ควยอ้นค่ะ`)
+    // Get all ids of the servers
     const guild_ids = client.guilds.cache.map(guild => guild.id);
 
-    const rest = new REST ({version: "9"}).setToken(process.env.TOKEN);
+
+    const rest = new REST({version: '9'}).setToken(process.env.TOKEN);
     for (const guildId of guild_ids)
     {
-        rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, guildID),{
-            body: commands 
-        })
-        .then(() => console.log(`Added commamds to ${guildId}`))
+        rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId), 
+            {body: commands})
+        .then(() => console.log('Successfully updated commands for guild ' + guildId))
         .catch(console.error);
     }
 });
 
-client.on("interactionCreate", async interactioon => {
-    if(!interaction.isCommandL()) return;
+client.on("interactionCreate", async interaction => {
+    if(!interaction.isCommand()) return;
 
-    const command = client.command.get(interaction.commandName);
+    const command = client.commands.get(interaction.commandName);
     if(!command) return;
 
     try
     {
         await command.execute({client, interaction});
     }
-    catch(err)
+    catch(error)
     {
-        console.log(err);
-        await interaction.reply("An error occurred while executing that command.");
+        console.error(error);
+        await interaction.reply({content: "There was an error executing this command"});
     }
 });
 
-
 client.login(process.env.TOKEN);
+
